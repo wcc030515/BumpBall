@@ -1,0 +1,12 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/ocean.gdshader" id="1_ocean"]
+
+[resource]
+resource_name = "SunnyIslandOcean"
+shader = ExtResource("1_ocean")
+shader_parameter/island_radius = 9.05
+shader_parameter/deep_color = Vector3(0.018, 0.225, 0.325)
+shader_parameter/shallow_color = Vector3(0.1, 0.66, 0.6)
+shader_parameter/sun_direction = Vector3(-0.4, 0.82, 0.35)
+shader_parameter/high_quality = true

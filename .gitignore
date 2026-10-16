@@ -1,0 +1,22 @@
+# Godot generated import/editor data; keep source .import settings and .uid files.
+.godot/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local builds, diagnostics and private configuration.
+/build/
+/exports/
+/qa-output/
+/tests/
+*.log
+*.tmp
+*.bak
+*.pck
+*.exe
+*.zip
+*.blend
+*.blend1
+.env
+.env.*
+export_credentials.cfg
