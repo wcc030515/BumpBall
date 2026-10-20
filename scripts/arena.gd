@@ -4,6 +4,7 @@ class_name IslandArena
 const BallBody = preload("res://scripts/ball_body.gd")
 const CollisionModel = preload("res://scripts/collision_model.gd")
 const IslandStage = preload("res://scripts/island_stage.gd")
+const NpcProfiles = preload("res://scripts/npc_profiles.gd")
 const ISLAND_RADIUS: float = 8.8
 const EFFECT_SECONDS: float = 3.0
 const SIZE_EFFECT_SECONDS: float = 8.0
@@ -31,6 +32,9 @@ var _pending_contacts: Dictionary = {}
 var _ai_state: Dictionary = {}
 var _random: RandomNumberGenerator = RandomNumberGenerator.new()
 var _wind_random: RandomNumberGenerator = RandomNumberGenerator.new()
+var _roster_random: RandomNumberGenerator = RandomNumberGenerator.new()
+var _roster_seeded: bool = false
+var _npc_deck: Array[int] = []
 var _wind_expires: float = 0.0
 var _wind_direction: Vector3 = Vector3.RIGHT
 var _countdown_remaining: float = 0.0
@@ -41,6 +45,7 @@ func _ready() -> void:
 	# Wind has its own random stream, independent of the reproducible NPC AI.
 	# It is seeded once, never reset when another round starts.
 	_wind_random.randomize()
+	_ensure_roster_random()
 	_create_platform()
 
 func _create_platform() -> void:
@@ -68,6 +73,7 @@ func clear_round() -> void:
 	_active_contacts.clear()
 	_pending_contacts.clear()
 	_ai_state.clear()
+	_npc_deck.clear()
 	status = "ready"
 	clock = 0.0
 	winner_id = ""
@@ -81,7 +87,16 @@ func start(players: Array, npc_count: int = 5, countdown_seconds: float = 0.0, i
 	clear_round()
 	_create_platform()
 	_random.seed = 12345678
+	_shuffle_npc_deck()
 	var configs: Array = players.duplicate(true)
+	# Explicit NPC configs from a saved authoritative roster reserve their profile
+	# before random slots are filled, so active presets cannot be duplicated.
+	for player: Dictionary in configs:
+		if not bool(player.get("human", false)):
+			var profile_id: String = str(player.get("npcProfileId", ""))
+			for preset_index: int in range(NpcProfiles.PRESETS.size()):
+				if str(NpcProfiles.PRESETS[preset_index]["npcProfileId"]) == profile_id:
+					_npc_deck.erase(preset_index)
 	for index: int in range(clampi(npc_count, 0, 10)):
 		configs.append(_npc_config(index))
 	# An empty roster is not a match and must never create a zero-survivor result.
@@ -112,19 +127,56 @@ func _spawn_ring_radius(count: int) -> float:
 
 func _npc_config(index: int) -> Dictionary:
 	var animals: Array[String] = ["rabbit", "bear", "pig", "cat", "dog", "fox", "panda", "raccoon"]
-	var names: Array[String] = ["团团", "胖达", "桃桃", "松松", "泡泡", "栗栗", "啵啵", "糯糯", "绵绵", "豆豆"]
 	var ball_colors: Array[String] = ["#F1B7B0", "#B9DDE0", "#BEDDBA", "#F5DE98", "#D5C3E5", "#EFC9B1", "#BDCFEB"]
-	var ball_color: String = ball_colors[index % ball_colors.size()]
-	return {"id": "npc-%d" % index, "name": names[index] if index < names.size() else "新伙伴%d" % (index + 1),
-		"animal": animals[index % animals.size()], "human": false,
+	var preset_index: int = _draw_npc_profile()
+	var profile: Dictionary = NpcProfiles.definition(preset_index)
+	var ball_color: String = ball_colors[preset_index % ball_colors.size()]
+	return {"id": "npc-%d" % index, "name": str(profile["name"]),
+		"npcProfileId": str(profile["npcProfileId"]), "baseSize": float(profile["baseSize"]), "baseSpeed": float(profile["baseSpeed"]),
+		"animal": animals[preset_index % animals.size()], "human": false,
 		"character": {},
 		"ball": {"colors": [ball_color,ball_color,ball_color]}}
+
+func _ensure_roster_random() -> void:
+	if not _roster_seeded:
+		_roster_random.randomize()
+		_roster_seeded = true
+
+func _shuffle_npc_deck() -> void:
+	_ensure_roster_random()
+	_npc_deck.clear()
+	for index: int in range(NpcProfiles.PRESETS.size()):
+		_npc_deck.append(index)
+	for index: int in range(_npc_deck.size() - 1, 0, -1):
+		var other: int = _roster_random.randi_range(0, index)
+		var saved: int = _npc_deck[index]
+		_npc_deck[index] = _npc_deck[other]
+		_npc_deck[other] = saved
+
+func _draw_npc_profile() -> int:
+	# One shuffled deck means no repeats throughout an ordinary round. After
+	# all 20 were used by repeated add/remove interactions, only inactive profiles
+	# can be reused; the current field (at most 12 contestants) stays unique.
+	var active: Dictionary = {}
+	for body: IslandBallBody in _alive_bodies():
+		if not bool(body.config.get("human", false)):
+			active[str(body.config.get("npcProfileId", ""))] = true
+	while true:
+		if _npc_deck.is_empty():
+			_shuffle_npc_deck()
+		var chosen: int = _npc_deck.pop_back()
+		if not active.has(str(NpcProfiles.PRESETS[chosen]["npcProfileId"])):
+			return chosen
+	return 0
 
 func _spawn(config: Dictionary, location: Vector3) -> IslandBallBody:
 	var body: IslandBallBody = BallBody.new()
 	body.configure(config, self)
 	body.wind_direction = _wind_direction
 	body.position = location
+	# Configure physical size before adding the body, including the frozen intro.
+	# Every sphere starts a small, uniform distance above the grass.
+	body.position.y = BallBody.BASE_RADIUS * body.ball_scale + 0.025
 	add_child(body)
 	entities[str(config["id"])] = body
 	_ai_state[str(config["id"])] = {"target": "", "think": 0.0, "phase": _random.randf() * TAU, "chargeUntil": 0.0, "chargeReady": 0.0, "charge": Vector3.ZERO,

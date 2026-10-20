@@ -6,6 +6,7 @@ const NameBubble: GDScript = preload("res://scripts/name_bubble.gd")
 const WaterMotion = preload("res://scripts/water_motion.gd")
 const CameraSettings = preload("res://scripts/camera_settings.gd")
 const WindVisual: GDScript = preload("res://scripts/wind_visual.gd")
+const MotionEffects: GDScript = preload("res://scripts/motion_effects.gd")
 const OCEAN_SHADER: Shader = preload("res://shaders/ocean.gdshader")
 const OCEAN_MATERIAL: ShaderMaterial = preload("res://materials/ocean.tres")
 const IslandStage = preload("res://scripts/island_stage.gd")
@@ -23,6 +24,7 @@ var ocean: MeshInstance3D
 var world_environment: WorldEnvironment
 var sunlight: DirectionalLight3D
 var entities: Dictionary = {}
+var motion_effects: Dictionary = {}
 var name_bubbles: Dictionary = {}
 var name_overlay: Control
 var appearances: Dictionary = {}
@@ -218,9 +220,17 @@ func update_entities(snapshot: Dictionary, local_id: String = "player") -> void:
 			bubble.name = "NameBubble_%s" % id.validate_node_name()
 			name_overlay.add_child(bubble)
 			name_bubbles[id] = bubble
+		if not motion_effects.has(id):
+			# Separate world-space pools: existing trails never turn with the rider.
+			var trail: Node3D = MotionEffects.new()
+			trail.name = "MotionEffects_%s" % id.validate_node_name()
+			add_child(trail)
+			trail.set_paused(motion_paused)
+			motion_effects[id] = trail
 		var visual: Node3D = entities[id]
 		if appearances.get(id, "") != signature:
 			visual.configure(animal, character, ball)
+			if motion_effects.has(id): motion_effects[id].reset()
 			appearances[id] = signature
 		visual.scale = Vector3.ONE
 		visual.rotation = Vector3.ZERO
@@ -257,6 +267,9 @@ func update_entities(snapshot: Dictionary, local_id: String = "player") -> void:
 			entities.erase(id)
 			appearances.erase(id)
 			latest_velocities.erase(id)
+			if motion_effects.has(id):
+				motion_effects[id].queue_free()
+				motion_effects.erase(id)
 			if name_bubbles.has(id):
 				name_bubbles[id].queue_free()
 				name_bubbles.erase(id)
@@ -268,6 +281,7 @@ func update_entities(snapshot: Dictionary, local_id: String = "player") -> void:
 		_place_match_camera()
 
 func show_preview(selection: Dictionary) -> void:
+	_clear_motion_effects()
 	cancel_match_intro()
 	preview_rotation = 0.0
 	camera_preview_scope = ""
@@ -451,6 +465,7 @@ func reset_match_camera() -> void:
 	camera_preview_id = ""
 	cancel_winner_focus()
 	for visual: Node3D in entities.values(): visual.reset_floating()
+	for trail: Node3D in motion_effects.values(): trail.reset()
 	preview_mode = false
 	_set_camera_mode(false)
 
@@ -523,6 +538,30 @@ func set_motion_paused(value: bool) -> void:
 	if island_stage != null: island_stage.set_motion_paused(value)
 	for visual: Node3D in entities.values():
 		visual.set_motion_paused(value)
+	for trail: Node3D in motion_effects.values():
+		trail.set_paused(value)
+
+func _clear_motion_effects() -> void:
+	for trail: Node3D in motion_effects.values():
+		trail.reset()
+		trail.queue_free()
+	motion_effects.clear()
+
+func _update_motion_effects(id: String, visual: Node3D, velocity: Vector3, dt: float) -> void:
+	if not motion_effects.has(id):
+		return
+	var trail: Node3D = motion_effects[id]
+	trail.set_paused(motion_paused)
+	var mode: String = visual.motion_effect_mode() if not preview_mode else "idle"
+	var radius: float = BASE_RADIUS_FOR_WATER * visual.visual_scale
+	var contact: Vector3 = visual.global_position - Vector3.UP * radius
+	# No dust, sweat or new marks while airborne, beyond the cliff, or swimming.
+	# Existing on-island particles may finish their short fade naturally.
+	if absf(contact.y) > 0.22 or not IslandStage.contains_point(Vector2(contact.x, contact.z)):
+		mode = "idle"
+	var motion: Vector3 = velocity if mode != "idle" else Vector3.ZERO
+	trail.update_motion(visual.global_position, motion, visual.animal_root.global_rotation.y,
+		visual.get_head_position(), mode, dt, radius)
 
 func _process(dt: float) -> void:
 	if intro_camera_active:
@@ -540,6 +579,7 @@ func _process(dt: float) -> void:
 			visual.set_water_motion(water.height, water.drift, water.tilt)
 		var velocity: Vector3 = latest_velocities.get(id, Vector3.ZERO)
 		visual.animate_motion(velocity, dt)
+		_update_motion_effects(str(id), visual, velocity, dt)
 	_update_name_bubbles()
 	for index: int in range(impact_effects.size() - 1, -1, -1):
 		var effect: Dictionary = impact_effects[index]

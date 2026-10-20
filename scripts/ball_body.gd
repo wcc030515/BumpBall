@@ -13,6 +13,8 @@ const WIND_DRAG: float = 6.0
 var config: Dictionary = {}
 var arena: Node3D
 var ball_scale: float = 1.0
+var base_size: float = 1.0
+var base_speed: float = 1.0
 var alive: bool = true
 var falling: bool = false
 var withdrawn: bool = false
@@ -44,7 +46,15 @@ func configure(player: Dictionary, owner_arena: Node3D) -> void:
 	config = player.duplicate(true)
 	arena = owner_arena
 	name = str(config.get("id", "ball"))
-	mass = 5.0
+	var human: bool = bool(config.get("human", false))
+	base_size = 1.0 if human else clampf(float(config.get("baseSize", 1.0)), 0.75, 1.25)
+	base_speed = 1.0 if human else clampf(float(config.get("baseSpeed", 1.0)), 0.75, 1.25)
+	config["baseSize"] = base_size
+	config["baseSpeed"] = base_speed
+	if human:
+		config.erase("npcProfileId")
+	ball_scale = base_size
+	mass = 5.0 * ball_scale
 	continuous_cd = true
 	contact_monitor = true
 	max_contacts_reported = 16
@@ -61,7 +71,7 @@ func configure(player: Dictionary, owner_arena: Node3D) -> void:
 	material.friction = 0.0
 	physics_material_override = material
 	_shape = SphereShape3D.new()
-	_shape.radius = BASE_RADIUS
+	_shape.radius = BASE_RADIUS * ball_scale
 	_collision_shape = CollisionShape3D.new()
 	_collision_shape.shape = _shape
 	add_child(_collision_shape)
@@ -71,7 +81,7 @@ func _reset_motion_history(velocity: Vector3) -> void:
 	_motion_history.clear()
 	_motion_frame = Engine.get_physics_frames()
 	pre_step_velocity = Vector3(velocity.x, 0.0, velocity.z)
-	# A newly spawned/debug-placed body already has a known incoming state. The
+	# A newly spawned body already has a known incoming state. The
 	# previous-frame entry lets a first callback align with an existing neighbour.
 	_motion_history[_motion_frame - 1] = {"velocity": pre_step_velocity, "response": Vector3.ZERO, "wind": Vector3.ZERO}
 	_motion_history[_motion_frame] = {"velocity": pre_step_velocity, "response": Vector3.ZERO, "wind": Vector3.ZERO}
@@ -120,7 +130,7 @@ func expire_effects(clock: float) -> void:
 
 func update_size() -> void:
 	var layers: Dictionary = counts()
-	var next_scale: float = clampf(1.0 + 0.1 * (int(layers["grow"]) - int(layers["shrink"])), 0.5, 2.0)
+	var next_scale: float = clampf(base_size + 0.1 * (int(layers["grow"]) - int(layers["shrink"])), 0.5, 2.0)
 	if is_equal_approx(next_scale, ball_scale):
 		return
 	var old_radius: float = BASE_RADIUS * ball_scale
@@ -130,6 +140,10 @@ func update_size() -> void:
 	_shape.radius = BASE_RADIUS * ball_scale
 	if grounded:
 		position.y = maxf(position.y + BASE_RADIUS * ball_scale - old_radius, BASE_RADIUS * ball_scale + 0.01)
+
+func speed_factor() -> float:
+	var layers: Dictionary = counts()
+	return clampf(base_speed + 0.2 * (int(layers["speedUp"]) - int(layers["speedDown"])), 0.2, 2.0)
 
 func receive_collision(kick: Vector3, baseline: Vector3, event: Dictionary, channel: Dictionary = {}) -> void:
 	var normal: Vector3 = Vector3(channel.get("normal", kick.normalized()))
@@ -205,8 +219,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		_pending_hit.clear()
 		_recovery = 0.18
 	var layers: Dictionary = counts()
-	var speed_factor: float = clampf(1.0 + 0.2 * (int(layers["speedUp"]) - int(layers["speedDown"])), 0.2, 2.0)
-	var target: Vector3 = input_direction.limit_length(1.0) * BASE_SPEED * speed_factor
+	var drive_factor: float = speed_factor()
+	var target: Vector3 = input_direction.limit_length(1.0) * BASE_SPEED * drive_factor
 	var kick_direction: Vector3 = _impact_axis
 	# Protect the actual reaction without discarding ordinary shared travel. In a
 	# chase the original drive remains a motor component; only new acceleration
@@ -224,7 +238,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 		# This motor controls only ordinary drive. Wind has a separate force channel
 		# and cannot be pulled back to the keyboard's target speed by this response.
 		var response: float = DRIVE_RESPONSE if input_direction.length_squared() > 0.0001 else 1.0
-		var acceleration: Vector3 = ((target - control_velocity) * response).limit_length(DRIVE_ACCELERATION * speed_factor)
+		var acceleration: Vector3 = ((target - control_velocity) * response).limit_length(DRIVE_ACCELERATION * drive_factor)
 		control_velocity += acceleration * delta
 	_recovery = maxf(0.0, _recovery - delta)
 	var average_wind: Vector3 = _advance_wind(int(layers["wind"]) > 0, delta)
@@ -261,7 +275,8 @@ func get_snapshot() -> Dictionary:
 		"x": position.x, "y": position.y, "z": position.z,
 		"vx": linear_velocity.x, "vz": linear_velocity.z,
 		"windVx": wind_velocity.x, "windVz": wind_velocity.z,
-		"scale": ball_scale, "mass": mass, "alive": alive,
+		"scale": ball_scale, "mass": mass, "radius": BASE_RADIUS * ball_scale,
+		"actualSpeedFactor": speed_factor(), "alive": alive,
 		"falling": falling, "withdrawn": withdrawn, "rank": rank,
 		"waterEntry": water_entry.duplicate(),
 		"effects": counts(), "effectRemaining": effect_remaining, "collisionCount": collision_count,

@@ -25,6 +25,8 @@ var is_winner: bool = false
 var is_falling: bool = false
 var motion_paused: bool = false
 var has_speed_boost: bool = false
+var has_speed_slow: bool = false
+var speed_effect_balance: int = 0
 var name_label: Label3D
 var effect_label: Label3D
 var local_ring: MeshInstance3D
@@ -115,6 +117,8 @@ func configure(animal: String, character: Dictionary, ball: Dictionary) -> void:
 	is_winner = false
 	is_falling = false
 	has_speed_boost = false
+	has_speed_slow = false
+	speed_effect_balance = 0
 	_load_character(character)
 	_measure_name_anchor()
 	_build_ball(ball)
@@ -167,6 +171,21 @@ func get_name_anchor() -> Vector3:
 		var head: Vector3 = animal_root.to_local(_name_head_skeleton.to_global(_name_head_skeleton.get_bone_global_pose(_name_head_bone).origin))
 		return animal_root.to_global(head + Vector3(0, name_head_height - _name_head_rest_y, 0))
 	return animal_root.to_global(Vector3(0, name_head_height, 0))
+
+func get_head_position() -> Vector3:
+	# Sweat attaches to the head, not the species' highest point (rabbit ears).
+	if is_instance_valid(_name_head_skeleton) and _name_head_bone >= 0:
+		return _name_head_skeleton.to_global(_name_head_skeleton.get_bone_global_pose(_name_head_bone).origin)
+	return animal_root.to_global(Vector3(0, name_head_height * 0.6, 0))
+
+func motion_effect_mode() -> String:
+	if floating or is_falling or not visible or match_phase != "playing":
+		return "idle"
+	if speed_effect_balance > 0:
+		return "boost"
+	if has_speed_slow:
+		return "slow"
+	return "normal"
 
 func _load_character(character: Dictionary) -> void:
 	# The exported model keeps its editable mesh parts, skin, face bones and
@@ -401,6 +420,9 @@ func _apply_role_ball_style() -> void:
 
 func set_effects(effects: Variant) -> void:
 	has_speed_boost = false
+	has_speed_slow = false
+	speed_effect_balance = 0
+	var size_effect_active: bool = false
 	var labels: Array[String] = []
 	var names: Dictionary = {"grow": "变大", "shrink": "变小", "speedUp": "加速", "speedDown": "减速"}
 	if effects is Array:
@@ -408,16 +430,29 @@ func set_effects(effects: Variant) -> void:
 			var kind: String = str(effect.get("kind", effect.get("type", ""))) if effect is Dictionary else str(effect)
 			if kind == "speedUp":
 				has_speed_boost = true
+			if kind in ["speedUp", "speedDown"]:
+				var count: int = maxi(1, int(effect.get("count", 1))) if effect is Dictionary else 1
+				speed_effect_balance += count if kind == "speedUp" else -count
+			if kind in ["grow", "shrink"]:
+				size_effect_active = true
 			if names.has(kind) and not labels.has(str(names[kind])):
 				labels.append(str(names[kind]))
 	elif effects is Dictionary:
 		for key: Variant in effects:
 			if str(key) == "speedUp" and float(effects[key]) > 0.0:
 				has_speed_boost = true
+			if float(effects[key]) > 0.0:
+				if str(key) in ["speedUp", "speedDown"]:
+					var count: int = maxi(1, int(effects[key]))
+					speed_effect_balance += count if str(key) == "speedUp" else -count
+				if str(key) in ["grow", "shrink"]:
+					size_effect_active = true
 			if names.has(str(key)) and float(effects[key]) > 0.0:
 				labels.append(str(names[str(key)]))
 	effect_label.text = ("互动×%d" % labels.size()) if labels.size() > 3 else " · ".join(labels)
-	effect_ring.visible = not labels.is_empty() and not floating and not is_falling
+	has_speed_slow = speed_effect_balance < 0
+	# Speed changes now use dust/sweat/skids; retain the size-effect cue only.
+	effect_ring.visible = size_effect_active and not floating and not is_falling
 	effect_label.visible = not floating and not is_falling
 
 func set_fall_state(falling: bool, alive: bool) -> void:
