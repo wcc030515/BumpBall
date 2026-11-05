@@ -1,0 +1,132 @@
+海岛碰碰球 / BumpBall — audio sources
+
+All selected audio assets: CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+ui-click.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/interface-sounds
+  Original: interface-sounds/Audio/click_001.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+ui-select.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/interface-sounds
+  Original: interface-sounds/Audio/select_002.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+ui-confirm.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/interface-sounds
+  Original: interface-sounds/Audio/confirmation_001.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+bump-soft.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/impact-sounds
+  Original: impact-sounds/Audio/impactSoft_medium_000.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+bump-heavy.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/impact-sounds
+  Original: impact-sounds/Audio/impactPunch_medium_000.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS, lowpass=f=5000
+
+grow.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/digital-audio
+  Original: digital-audio/Audio/highUp.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+shrink.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/digital-audio
+  Original: digital-audio/Audio/highDown.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+spawn.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/digital-audio
+  Original: digital-audio/Audio/powerUp2.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+countdown.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/interface-sounds
+  Original: interface-sounds/Audio/bong_001.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+splash.ogg
+  Author: rubberduck
+  Source: https://opengameart.org/content/40-cc0-water-splash-slime-sfx
+  Original: water/splash_14.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+wind-loop.ogg
+  Author: Luke.RUSTLTD
+  Source: https://opengameart.org/content/wind1
+  Original: wind1.wav
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS, atrim=start=1:end=11,highpass=f=90,lowpass=f=6500, 180ms loop crossfade
+
+flowerbed-fields.ogg
+  Author: Zane Little Music
+  Source: https://opengameart.org/content/flowerbed-fields-loop
+  Original: flowerbed_fields.ogg
+  License: CC0-1.0
+  Processing: Vorbis compression, peak -3 dBFS
+
+boost-loop.ogg
+  Author: artisticdude; Luke.RUSTLTD
+  Source: https://opengameart.org/content/swishes-sound-pack ; https://opengameart.org/content/wind1
+  Original: swish-1/7/3.wav; wind1.wav
+  License: CC0-1.0
+  Processing: Edited air swishes and quiet rushing-air recording, loop crossfade, peak -3 dBFS, Vorbis
+
+slow-loop.ogg
+  Author: mikeask
+  Source: https://opengameart.org/content/breathing-tired
+  Original: breathing tired.wav
+  License: CC0-1.0
+  Processing: Tired breathing, slightly raised character pitch, loop crossfade, peak -3 dBFS, Vorbis
+
+bump-powerful.ogg
+  Author: Kenney
+  Source: https://kenney.nl/assets/impact-sounds
+  Original: impactPunch_heavy_000.ogg
+  License: CC0-1.0
+  Processing: Heavier punch for powered attacks, peak -3 dBFS, Vorbis
+
+confusion-loop.wav
+  Author: Kenney
+  Source: https://kenney.nl/assets/sci-fi-sounds
+  Original: computerNoise_001.ogg -> Toy Car Drift confusion-loop.wav
+  License: CC0-1.0
+  Processing: Exact byte-for-byte reuse of Toy Car Drift mono PCM loop, original 40ms overlap crossfade and peak 0.80
+
+victory-steel-drums.mp3
+  Author: Fupi
+  Source: https://opengameart.org/content/win-jingle
+  Original: WinSteelDrums.ogg
+  License: CC0-1.0
+  Processing: Exact approved audition B (2026-11-05): full original steel-drum phrase, loudness normalized to -17 LUFS, peak -2 dBTP, MP3 160kbps; unchanged pitch and tempo
+
+
+
+defeat-sax.mp3
+  Author: Kenney
+  Source: https://kenney.nl/assets/music-jingles
+  Original: Sax jingles/jingles_SAX07.ogg
+  License: CC0-1.0
+  Processing: Exact approved audition C, full original phrase, unchanged pitch and tempo

@@ -1,0 +1,200 @@
+[
+  {
+    "file": "ui-click.ogg",
+    "original": "interface-sounds/Audio/click_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.097,
+    "bytes": 4089,
+    "sha256": "757f3caac22ffa3dd41d3a783acb15eba55ec79ead831069857af757b087506f",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "ui-select.ogg",
+    "original": "interface-sounds/Audio/select_002.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.04,
+    "bytes": 3882,
+    "sha256": "ed44d5b973e5b69943fc2534141f66e379b3a15cc46c3c4caf6f6d5076b8de42",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "ui-confirm.ogg",
+    "original": "interface-sounds/Audio/confirmation_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.29,
+    "bytes": 4530,
+    "sha256": "e5b808f2b997abd2b172169d5af3bfc249d2248913da9f40c2ef0b4d65a447fe",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "bump-soft.ogg",
+    "original": "impact-sounds/Audio/impactSoft_medium_000.ogg",
+    "source": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.115,
+    "bytes": 3883,
+    "sha256": "ff02638f2d39ed327c80480e3fea31562625a72442824833f53846e2a1084f49",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "bump-heavy.ogg",
+    "original": "impact-sounds/Audio/impactPunch_medium_000.ogg",
+    "source": "https://kenney.nl/assets/impact-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.431,
+    "bytes": 5516,
+    "sha256": "3b7e8281d7e16bab4478c9e965f9ff3429431faa154912899a5c3bb6ff4296b0",
+    "processing": "Vorbis compression, peak -3 dBFS, lowpass=f=5000"
+  },
+  {
+    "file": "grow.ogg",
+    "original": "digital-audio/Audio/highUp.ogg",
+    "source": "https://kenney.nl/assets/digital-audio",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.546,
+    "bytes": 6340,
+    "sha256": "cde2b0aed72746aa0e9426f372e2407c728f32d8d993bdc3cc2b02d31a00292e",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "shrink.ogg",
+    "original": "digital-audio/Audio/highDown.ogg",
+    "source": "https://kenney.nl/assets/digital-audio",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.52,
+    "bytes": 6691,
+    "sha256": "9fdf1c4fe8af4c321bbf9db374ea2dd0f5089f8710ebaa56a12d0000d3b2ffcd",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "spawn.ogg",
+    "original": "digital-audio/Audio/powerUp2.ogg",
+    "source": "https://kenney.nl/assets/digital-audio",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.467,
+    "bytes": 5828,
+    "sha256": "0bd2280172d05bb90fab0fa4ccf82645f8044767f7ad290377dba05ac7eab14e",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "countdown.ogg",
+    "original": "interface-sounds/Audio/bong_001.ogg",
+    "source": "https://kenney.nl/assets/interface-sounds",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "seconds": 0.12,
+    "bytes": 3859,
+    "sha256": "5918517bfc95f48a56f4952bc50b80a111a28ab33e6a2dbbaf64b6f66ee9f709",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "splash.ogg",
+    "original": "water/splash_14.ogg",
+    "source": "https://opengameart.org/content/40-cc0-water-splash-slime-sfx",
+    "author": "rubberduck",
+    "license": "CC0-1.0",
+    "seconds": 0.559,
+    "bytes": 7933,
+    "sha256": "a55f78aeb07f423c1effbff0e3455e0c28c1972cc90718ca5a71648f2e3cdf10",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "wind-loop.ogg",
+    "original": "wind1.wav",
+    "source": "https://opengameart.org/content/wind1",
+    "author": "Luke.RUSTLTD",
+    "license": "CC0-1.0",
+    "seconds": 9.82,
+    "bytes": 77118,
+    "sha256": "e4f89f3039785e3fd1620c137b83a92b79699e42dc66ef793d93133b3f8b4f03",
+    "processing": "Vorbis compression, peak -3 dBFS, atrim=start=1:end=11,highpass=f=90,lowpass=f=6500, 180ms loop crossfade"
+  },
+  {
+    "file": "flowerbed-fields.ogg",
+    "original": "flowerbed_fields.ogg",
+    "source": "https://opengameart.org/content/flowerbed-fields-loop",
+    "author": "Zane Little Music",
+    "license": "CC0-1.0",
+    "seconds": 105.931,
+    "bytes": 1089419,
+    "sha256": "e290339da1cf4359e2acad91d27a411e2f05c66aa6ff4792258c41290a8967d7",
+    "processing": "Vorbis compression, peak -3 dBFS"
+  },
+  {
+    "file": "boost-loop.ogg",
+    "author": "artisticdude; Luke.RUSTLTD",
+    "source": "https://opengameart.org/content/swishes-sound-pack ; https://opengameart.org/content/wind1",
+    "original": "swish-1/7/3.wav; wind1.wav",
+    "license": "CC0-1.0",
+    "seconds": 1.734,
+    "bytes": 16100,
+    "sha256": "29f1765cd5a71404315866bc6ec765d7609dcfd9c69c4b8f18f7570a8fa1dce8",
+    "processing": "Edited air swishes and quiet rushing-air recording, loop crossfade, peak -3 dBFS, Vorbis"
+  },
+  {
+    "file": "slow-loop.ogg",
+    "author": "mikeask",
+    "source": "https://opengameart.org/content/breathing-tired",
+    "original": "breathing tired.wav",
+    "license": "CC0-1.0",
+    "seconds": 2.541,
+    "bytes": 23327,
+    "sha256": "395215c0a66cee45434bcf72e8ff868d9a1149eb56aaa1a5bb72f2d78efe1940",
+    "processing": "Tired breathing, slightly raised character pitch, loop crossfade, peak -3 dBFS, Vorbis"
+  },
+  {
+    "file": "bump-powerful.ogg",
+    "author": "Kenney",
+    "source": "https://kenney.nl/assets/impact-sounds",
+    "original": "impactPunch_heavy_000.ogg",
+    "license": "CC0-1.0",
+    "seconds": 0.649,
+    "bytes": 7162,
+    "sha256": "7822b42cb6bf23c29e2f7f9ef244fed2595a7a8ed0af4707e7c075b93a492ca7",
+    "processing": "Heavier punch for powered attacks, peak -3 dBFS, Vorbis"
+  },
+  {
+    "file": "confusion-loop.wav",
+    "original": "computerNoise_001.ogg -> Toy Car Drift confusion-loop.wav",
+    "author": "Kenney",
+    "source": "https://kenney.nl/assets/sci-fi-sounds",
+    "license": "CC0-1.0",
+    "seconds": 4.961,
+    "bytes": 437604,
+    "sha256": "22321a7b5bdd16a4643f50c99926b032fe5bfa465e5dfdc5d133b9edf7058be4",
+    "processing": "Exact byte-for-byte reuse of Toy Car Drift mono PCM loop, original 40ms overlap crossfade and peak 0.80"
+  },
+  {
+    "file": "victory-steel-drums.mp3",
+    "author": "Fupi",
+    "source": "https://opengameart.org/content/win-jingle",
+    "original": "WinSteelDrums.ogg",
+    "license": "CC0-1.0",
+    "seconds": 3.81,
+    "bytes": 76844,
+    "sha256": "2ec192e8aaa31838ca12bc582441b78a65373f297e1112106b3214b80e214a19",
+    "processing": "Exact approved audition B (2026-11-05): full original steel-drum phrase, loudness normalized to -17 LUFS, peak -2 dBTP, MP3 160kbps; unchanged pitch and tempo"
+  },
+  {
+    "file": "defeat-sax.mp3",
+    "author": "Kenney",
+    "source": "https://kenney.nl/assets/music-jingles",
+    "original": "jingles_SAX07.ogg",
+    "license": "CC0-1.0",
+    "seconds": 1.74,
+    "bytes": 36093,
+    "sha256": "1070f8325deec69a3727205cc9ab9edbd5910f8e330c400764d3a43a54156765",
+    "processing": "Exact approved audition C: full sax phrase, audition loudness normalization and MP3 encoding; unchanged pitch and tempo"
+  }
+]

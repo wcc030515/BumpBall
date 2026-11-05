@@ -1,16 +1,16 @@
 * text=auto
-*.gd text eol=lf
-*.gdshader text eol=lf
-*.godot text eol=lf
-*.tscn text eol=lf
-*.tres text eol=lf
-*.uid text eol=lf
-*.import text eol=lf
-*.cfg text eol=lf
+*.ts text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
 *.json text eol=lf
-*.svg text eol=lf
 *.md text eol=lf
+*.yml text eol=lf
+*.svg text eol=lf
 *.glb binary
 *.png binary
-.gitattributes text eol=lf
-.gitignore text eol=lf
+*.webp binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+public/assets/native/** -text

@@ -1,22 +1,21 @@
-# Godot generated import/editor data; keep source .import settings and .uid files.
+node_modules/
+dist/
 .godot/
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Local builds, diagnostics and private configuration.
-/build/
-/exports/
-/qa-output/
-/tests/
 *.log
 *.tmp
 *.bak
-*.pck
-*.exe
-*.zip
-*.blend
-*.blend1
 .env
 .env.*
-export_credentials.cfg
+qa/
+exports/
+release/
+art/
+assets-production/
+design-previews/
+*.blend
+*.blend1
+*.zip
+*.mp4
