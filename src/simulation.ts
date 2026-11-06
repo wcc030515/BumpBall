@@ -208,6 +208,7 @@ export class GameSimulation {
     private aiSeed = 12345678;
     private rosterSeed: number;
     private windSeed: number;
+    private appearanceSeed: number;
     private npcDeck: number[] = [];
     private nextNPCId = 0;
     private windExpires = 0;
@@ -224,6 +225,7 @@ export class GameSimulation {
         const randomSeed = options.randomSeed ?? GameSimulation.freshSeed();
         this.rosterSeed = randomSeed || 0x9e3779b9;
         this.windSeed = (randomSeed ^ 0x85ebca6b) || 0x27d4eb2f;
+        this.appearanceSeed = (randomSeed ^ 0xc2b2ae35) || 0x165667b1;
         this.aiEnabled = options.aiEnabled ?? true;
     }
     static async create(options: SimulationOptions = {}): Promise<GameSimulation> {
@@ -253,8 +255,8 @@ export class GameSimulation {
             return globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
         return (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     }
-    private random(stream: 'ai' | 'roster' | 'wind' = 'ai'): number {
-        let state = stream === 'ai' ? this.aiSeed : stream === 'roster' ? this.rosterSeed : this.windSeed;
+    private random(stream: 'ai' | 'roster' | 'wind' | 'appearance' = 'ai'): number {
+        let state = stream === 'ai' ? this.aiSeed : stream === 'roster' ? this.rosterSeed : stream === 'wind' ? this.windSeed : this.appearanceSeed;
         state ^= state << 13;
         state ^= state >>> 17;
         state ^= state << 5;
@@ -262,8 +264,10 @@ export class GameSimulation {
             this.aiSeed = state;
         else if (stream === 'roster')
             this.rosterSeed = state;
-        else
+        else if (stream === 'wind')
             this.windSeed = state;
+        else
+            this.appearanceSeed = state;
         return (state >>> 0) / 4294967296;
     }
     private resetWorld(): void {
@@ -307,8 +311,17 @@ export class GameSimulation {
             }
         }
         const count = clamp(Math.floor(npcCount), 0, 10);
-        for (let i = 0; i < count; i++)
-            configs.push(this.npcConfig(i));
+        for (let i = 0; i < count; i++) {
+            const config = this.npcConfig(i);
+            config.animal = this.startingAnimal(configs);
+            configs.push(config);
+        }
+        // Reserve human selections first, even if an explicit NPC precedes them.
+        const appearances = configs.filter(config => config.human);
+        for (const config of configs.filter(config => !config.human)) {
+            this.distinguishNPC(config, appearances);
+            appearances.push(config);
+        }
         if (!configs.length)
             return;
         this.nextNPCId = count;
@@ -349,6 +362,18 @@ export class GameSimulation {
         return { id: `npc-${index}`, name: profile.name, npcProfileId: profile.npcProfileId,
             baseSize: profile.baseSize, baseSpeed: profile.baseSpeed, animal: ANIMAL_KINDS[profileIndex % ANIMAL_KINDS.length],
             human: false, character: { colors: [] }, ball: { colors: [color, color, color] } };
+    }
+    private startingAnimal(configs: readonly PlayerConfig[]): AnimalKind {
+        const counts = ANIMAL_KINDS.map(animal => configs.filter(config => config.animal === animal).length);
+        const minimum = Math.min(...counts);
+        const choices = ANIMAL_KINDS.filter((_, index) => counts[index] === minimum);
+        // Appearance randomness must not change the attribute deck, AI or wind.
+        return choices[Math.floor(this.random('appearance') * choices.length)];
+    }
+    private distinguishNPC(config: PlayerConfig, peers: readonly PlayerConfig[]): void {
+        const sameAnimal = peers.filter(peer => peer.animal === config.animal);
+        if (sameAnimal.length)
+            config.character.colors = [distinctNPCPrimaryColor(sameAnimal.map(characterPrimaryColor), peers.length)];
     }
     private spawn(rawConfig: PlayerConfig, x: number, z: number): Entity {
         const config = copyConfig(rawConfig);
@@ -476,11 +501,7 @@ export class GameSimulation {
         if (this.aliveEntities().length >= STAT_LIMITS.maxPlayers)
             return { ok: false, message: '场上人数已满' };
         const config = this.npcConfig(this.nextNPCId++), point = this.landingPoint(BALL_RADIUS * (config.baseSize || 1));
-        if (fromSky) {
-            const sameAnimal = this.entities.filter(e => !e.withdrawn && e.config.animal === config.animal);
-            if (sameAnimal.length)
-                config.character.colors = [distinctNPCPrimaryColor(sameAnimal.map(e => characterPrimaryColor(e.config)), this.nextNPCId)];
-        }
+        this.distinguishNPC(config, this.entities.filter(e => !e.withdrawn).map(e => e.config));
         const e = this.spawn(config, point.x, point.z);
         if (fromSky) {
             const floor = BALL_RADIUS * e.scale + .025;
