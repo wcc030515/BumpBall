@@ -8,5 +8,6 @@ export function assetUrl(path: string): string {
     const embedded = (window as unknown as {
         __BALL_ASSETS__?: Record<string, string>;
     }).__BALL_ASSETS__;
-    return embedded?.[full] || embedded?.[full.replace(/^.*?\/assets\//, 'assets/')] || embedded?.[`/assets/native/${path}`] || full;
+    const unversioned = full.split('?')[0];
+    return embedded?.[unversioned] || embedded?.[unversioned.replace(/^.*?\/assets\//, 'assets/')] || embedded?.[`/assets/native/${path.split('?')[0]}`] || full;
 }

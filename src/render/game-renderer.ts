@@ -6,9 +6,9 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { Ocean } from './ocean';
 import { MovementEffects } from './movement-effects';
 import { CollisionSparks } from './collision-sparks';
-import { PRIMARY_COLORS, characterPrimaryColor } from '../character-colors';
+import { PRIMARY_COLORS, PRIMARY_SOURCE_LUMINANCE, characterPrimaryColor } from '../character-colors';
 import { assetUrl } from '../asset-url';
-import { applyPrimaryColorMaterials } from './primary-color';
+import { applyPrimaryColorMaterials, configureAnimalTextureSampling } from './primary-color';
 import { ConfusionEffect } from './confusion-effect';
 import { classifyCollisionFeedback } from '../collision-feedback';
 import type { PlayerConfig, EntitySnapshot, Snapshot } from '../simulation';
@@ -118,7 +118,7 @@ class AnimalView {
     private primaryHex = '';
     constructor(public config: PlayerConfig, asset: GLTF, paw: THREE.Texture, mask: THREE.Texture, scene: THREE.Scene, labels: HTMLElement, private readonly waterHeight: (x: number, z: number) => number) {
         let sharedRig = !!asset.scene.getObjectByName('Cat_Rig_Forward');
-        asset.scene.traverse(o => { if (o.userData.common_animal_asset === true)
+        asset.scene.traverse(o => { if (o.userData.common_animal_asset === true || o.name.startsWith('NewCommonAnimal_Rig_'))
             sharedRig = true; });
         this.usesSharedAnimalRig = sharedRig;
         this.model = cloneSkeleton(asset.scene);
@@ -130,7 +130,7 @@ class AnimalView {
             o.receiveShadow = true;
             o.frustumCulled = false;
         } });
-        const paint = applyPrimaryColorMaterials(this.model, mask, PRIMARY_COLORS[config.animal]);
+        const paint = applyPrimaryColorMaterials(this.model, mask, PRIMARY_COLORS[config.animal], PRIMARY_SOURCE_LUMINANCE[config.animal]);
         this.customMaterials.push(...paint.materials);
         this.primarySetters.push(paint.setColor);
         this.body.add(this.model);
@@ -387,7 +387,23 @@ export class GameRenderer {
             manager.setURLModifier(url => { const image = url.match(/(?:^|\/)textures\/([a-f0-9]{64}\.(?:webp|png|jpg))$/); return image ? assetUrl(`textures/${image[1]}`) : url; });
         const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
         const textureLoader = new THREE.TextureLoader(manager);
-        const jobs = ANIMALS.map(async (animal) => { const [asset, paw, mask] = await Promise.all([loader.loadAsync(assetUrl(`animals/${animal}.glb`)), textureLoader.loadAsync(assetUrl(`ball-prints/${animal}.svg`)), textureLoader.loadAsync(assetUrl(`primary-masks/${animal}.png`))]); paw.colorSpace = THREE.NoColorSpace; paw.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy()); mask.colorSpace = THREE.NoColorSpace; mask.flipY = false; mask.minFilter = THREE.LinearFilter; mask.magFilter = THREE.LinearFilter; mask.generateMipmaps = false; this.assets.set(animal, asset); this.paws.set(animal, paw); this.masks.set(animal, mask); });
+        const jobs = ANIMALS.map(async (animal) => {
+            const [asset, paw, mask] = await Promise.all([loader.loadAsync(assetUrl(`animals/${animal}.glb?rev=new-animals-20261106`)), textureLoader.loadAsync(assetUrl(`ball-prints/${animal}.svg`)), textureLoader.loadAsync(assetUrl(`primary-masks/${animal}.png?rev=new-animals-20261106`))]);
+            // Normalize the shared atlas before menu, warm-up and match instances clone it.
+            asset.scene.traverse(o => { if (o instanceof THREE.Mesh)
+                for (const m of Array.isArray(o.material) ? o.material : [o.material])
+                    if (m instanceof THREE.MeshStandardMaterial && m.map)
+                        configureAnimalTextureSampling(m.map); });
+            paw.colorSpace = THREE.NoColorSpace;
+            paw.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+            mask.colorSpace = THREE.SRGBColorSpace;
+            mask.premultiplyAlpha = false;
+            mask.flipY = false;
+            configureAnimalTextureSampling(mask);
+            this.assets.set(animal, asset);
+            this.paws.set(animal, paw);
+            this.masks.set(animal, mask);
+        });
         const islandJob = loader.loadAsync(assetUrl('island/island_stage.glb')).then(gltf => { gltf.scene.name = 'ApprovedIslandStageV3Refined'; gltf.scene.traverse(o => { if (o instanceof THREE.Mesh) {
             if (o.name === 'Arena_Flat_Grass')
                 correctArenaSurface(o);
@@ -413,7 +429,7 @@ export class GameRenderer {
                 o.castShadow = true;
                 o.receiveShadow = true;
             } });
-            const paint = applyPrimaryColorMaterials(model, this.masks.get(animal)!, PRIMARY_COLORS[animal]);
+            const paint = applyPrimaryColorMaterials(model, this.masks.get(animal)!, PRIMARY_COLORS[animal], PRIMARY_SOURCE_LUMINANCE[animal]);
             this.warmColorMaterials.push(...paint.materials);
             warmScene.add(model);
         }

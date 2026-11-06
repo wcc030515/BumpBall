@@ -1,14 +1,13 @@
 import type { AnimalKind, PlayerConfig } from './simulation';
-// Dominant surface color measured on each approved model. Only its mask is editable.
+// Measured from the approved November 6 preview. Only the dominant fur layer is editable.
 export const PRIMARY_COLORS: Record<AnimalKind, string> = {
-    "cat": "#fe8f29",
-    "dog": "#d1743d",
-    "rabbit": "#fde7d5",
-    "raccoon": "#c0a19c",
-    "panda": "#fef3e6",
-    "fox": "#fe8330",
-    "bear": "#cb6e39",
-    "hamster": "#fda13c"
+    cat: '#f68501', dog: '#d3610a', rabbit: '#f5cb81', raccoon: '#a57e7a',
+    panda: '#352e23', fox: '#f96501', bear: '#c9620e', hamster: '#f69c00'
+};
+export const PRIMARY_SOURCE_LUMINANCE: Record<AnimalKind, number> = {
+    cat: .36370079365431596, dog: .22420186869484168, rabbit: .6370932840294976,
+    raccoon: .24326182423363538, panda: .02832223377205416, fox: .29449289248663907,
+    bear: .21184578365737378, hamster: .4336976414393403
 };
 export function characterPrimaryColor(config: Pick<PlayerConfig, 'animal' | 'character'>): string {
     const requested = config.character.colors[0];
