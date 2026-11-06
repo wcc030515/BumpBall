@@ -9,7 +9,6 @@ import { CollisionSparks } from './collision-sparks';
 import { PRIMARY_COLORS, characterPrimaryColor } from '../character-colors';
 import { assetUrl } from '../asset-url';
 import { applyPrimaryColorMaterials } from './primary-color';
-import { AirdropCanopy } from './airdrop';
 import { ConfusionEffect } from './confusion-effect';
 import { classifyCollisionFeedback } from '../collision-feedback';
 import type { PlayerConfig, EntitySnapshot, Snapshot } from '../simulation';
@@ -117,7 +116,6 @@ class AnimalView {
     private readonly usesSharedAnimalRig: boolean;
     private primarySetters: Array<(hex: string) => void> = [];
     private primaryHex = '';
-    private parachute?: AirdropCanopy;
     constructor(public config: PlayerConfig, asset: GLTF, paw: THREE.Texture, mask: THREE.Texture, scene: THREE.Scene, labels: HTMLElement, private readonly waterHeight: (x: number, z: number) => number) {
         let sharedRig = !!asset.scene.getObjectByName('Cat_Rig_Forward');
         asset.scene.traverse(o => { if (o.userData.common_animal_asset === true)
@@ -226,11 +224,6 @@ class AnimalView {
             this.bubble.removeChild(this.bubble.childNodes[1]);
     }
     update(e: EntitySnapshot, phase: string, winnerId: string | null, dt: number, time: number, menu = false, yaw = 0, interpolate = false, camera?: THREE.PerspectiveCamera) {
-        if (e.airdrop && !this.parachute) {
-            this.parachute = new AirdropCanopy(this.headHeight);
-            this.root.add(this.parachute);
-        }
-        this.parachute?.update(!!e.airdrop, e.airdrop?.progress || 0, dt, time);
         const at = entityPos(e), v = entityVel(e);
         if (interpolate && !menu && e.alive && !e.falling && this.hasRenderedPosition && this.root.position.distanceTo(at) <= 2.5) {
             at.lerpVectors(this.root.position, at, 1 - Math.exp(-dt * 20));
@@ -329,7 +322,7 @@ class AnimalView {
     }
     nameAnchor() { if (this.head)
         return this.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, this.headHeight - this.headRestY, 0)); return this.body.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, this.headHeight, 0)); }
-    dispose() { this.confusion?.dispose(); this.parachute?.dispose(); this.bubble.remove(); this.root.removeFromParent(); this.effects.dispose(); this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.model); this.sphere.geometry.dispose(); this.lifering.traverse(o => { if (o instanceof THREE.Mesh)
+    dispose() { this.confusion?.dispose(); this.bubble.remove(); this.root.removeFromParent(); this.effects.dispose(); this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.model); this.sphere.geometry.dispose(); this.lifering.traverse(o => { if (o instanceof THREE.Mesh)
         o.geometry.dispose(); }); this.customMaterials.forEach(m => m.dispose()); }
 }
 export class GameRenderer {

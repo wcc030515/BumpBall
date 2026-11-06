@@ -505,7 +505,7 @@ export class GameSimulation {
         const e = this.spawn(config, point.x, point.z);
         if (fromSky) {
             const floor = BALL_RADIUS * e.scale + .025;
-            e.airdrop = { elapsed: 0, duration: 1.8, startY: floor + 4.5, startX: point.x, startZ: point.z, x: point.x, z: point.z };
+            e.airdrop = { elapsed: 0, duration: .55, startY: floor + 4.5, startX: point.x, startZ: point.z, x: point.x, z: point.z };
             e.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true);
             e.body.setTranslation({ x: point.x, y: e.airdrop.startY, z: point.z }, true);
             e.collider.setSensor(true);
@@ -551,12 +551,12 @@ export class GameSimulation {
             drop.z = next.z;
             drop.startY = at.y;
             drop.elapsed = 0;
-            drop.duration = .65;
+            drop.duration = .25;
             return;
         }
         if (progress < 1) {
             const t = progress * progress * (3 - 2 * progress);
-            e.body.setNextKinematicTranslation({ x: drop.startX + (drop.x - drop.startX) * t, y: drop.startY + (floor - drop.startY) * progress, z: drop.startZ + (drop.z - drop.startZ) * t });
+            e.body.setNextKinematicTranslation({ x: drop.startX + (drop.x - drop.startX) * t, y: drop.startY + (floor - drop.startY) * progress * progress, z: drop.startZ + (drop.z - drop.startZ) * t });
             return;
         }
         e.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
