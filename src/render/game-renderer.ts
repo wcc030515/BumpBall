@@ -226,7 +226,10 @@ class AnimalView {
     update(e: EntitySnapshot, phase: string, winnerId: string | null, dt: number, time: number, menu = false, yaw = 0, interpolate = false, camera?: THREE.PerspectiveCamera) {
         const at = entityPos(e), v = entityVel(e);
         if (interpolate && !menu && e.alive && !e.falling && this.hasRenderedPosition && this.root.position.distanceTo(at) <= 2.5) {
+            const height = at.y;
             at.lerpVectors(this.root.position, at, 1 - Math.exp(-dt * 20));
+            if (!e.airdrop)
+                at.y = height;
         }
         this.hasRenderedPosition = true;
         if (phase === 'finished' && winnerId === e.id)
@@ -527,7 +530,7 @@ export class GameRenderer {
                 const a = snapshot.entities.find(e => e.id === hit.a), b = snapshot.entities.find(e => e.id === hit.b);
                 if (!a || !b || a.withdrawn || b.withdrawn || snapshot.elapsedSeconds - hit.at > .35)
                     continue;
-                this.collisionSparks.emit(new THREE.Vector3(hit.x, hit.y, hit.z), Math.min(a.radius, b.radius), feedback.tier, feedback.strongerId, key);
+                this.collisionSparks.emit(new THREE.Vector3(hit.x, hit.y, hit.z), hit.impulse, feedback.tier, feedback.strongerId, key);
             }
         for (const key of this.seenImpacts)
             if (!retained.has(key))

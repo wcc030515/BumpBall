@@ -16,14 +16,23 @@ export function classifyCollisionFeedback(a: string, b: string, distanceA: numbe
     // A is stronger when B is the one thrown farther, and vice versa.
     return { strongerId: db > da ? a : b, tier, gap };
 }
+/** Absolute impulse controls size; the advantage tier controls the existing styling.
+ * A normal 5 kg ball moving at 5.8 m/s into an equal stationary ball gives J=29.
+ */
+export function impactSparkSize(impulse: number): number {
+    const magnitude = Number.isFinite(impulse) ? Math.max(0, impulse) : 0;
+    const baseSize = Math.max(.6, Math.min(1.7, Math.sqrt(magnitude / 29)));
+    const heavy = Math.max(0, Math.min(1, (magnitude - 29) / 58));
+    // Double every impact, then smoothly add up to 30% more for heavy contacts.
+    return baseSize * 2 * (1 + .3 * heavy * heavy * (3 - 2 * heavy));
+}
 export const IMPACT_SPARK_STYLES: Readonly<Record<ImpactTier, {
-    strength: number;
     flecks: number;
     duration: number;
 }>> = {
-    0: { strength: .75, flecks: 5, duration: .30 },
-    1: { strength: .86, flecks: 5, duration: .30 },
-    2: { strength: .98, flecks: 6, duration: .30 },
-    3: { strength: 1.08, flecks: 7, duration: .30 },
-    4: { strength: 1.18, flecks: 7, duration: .30 },
+    0: { flecks: 5, duration: .30 },
+    1: { flecks: 5, duration: .30 },
+    2: { flecks: 6, duration: .30 },
+    3: { flecks: 7, duration: .30 },
+    4: { flecks: 7, duration: .30 },
 };

@@ -106,6 +106,7 @@ export const COLLISION_BRAKE_DECELERATION = 8;
 export const EFFECT_SECONDS = 3;
 // Godot project.godot runs the accepted collision controller at 120 Hz.
 const FIXED_STEP = 1 / 120;
+const GROUND_CLEARANCE = .01;
 const WIND_FORCE = 120;
 const WIND_DRAG = 6;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -160,6 +161,7 @@ type Entity = {
     yaw: number;
     waterEntry: Vector3 | null;
     frozen: boolean;
+    grounded: boolean;
     input: Vector3;
     control: Vector3;
     knockback: Vector3;
@@ -384,12 +386,12 @@ export class GameSimulation {
         if (config.human)
             delete config.npcProfileId;
         const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(x, BALL_RADIUS * baseSize + .025, z).setLinearDamping(0).setAngularDamping(0)
-            .lockRotations().setCcdEnabled(true).setCanSleep(false));
+            .setTranslation(x, BALL_RADIUS * baseSize + GROUND_CLEARANCE, z).setLinearDamping(0).setAngularDamping(0)
+            .enabledTranslations(true, false, true).lockRotations().setCcdEnabled(true).setCanSleep(false));
         const collider = this.world.createCollider(this.ballDescriptor(baseSize), body);
         const entity: Entity = {
             config, body, collider, baseSize, baseSpeed, scale: baseSize, alive: true, falling: false, withdrawn: false,
-            yaw: Math.atan2(-x, -z), waterEntry: null, frozen: false, effects: [],
+            yaw: Math.atan2(-x, -z), waterEntry: null, frozen: false, grounded: true, effects: [],
             sizeDelta: 0, speedDelta: 0, airdrop: null,
             input: zero(), control: zero(), knockback: zero(), wind: zero(), incoming: zero(), sampledResponse: zero(), sampledWind: zero(),
             pending: null, impactAxis: zero(), impactSpeed: 0, impactRemaining: 0, impactDriveFloor: 0,
@@ -504,8 +506,10 @@ export class GameSimulation {
         this.distinguishNPC(config, this.entities.filter(e => !e.withdrawn).map(e => e.config));
         const e = this.spawn(config, point.x, point.z);
         if (fromSky) {
-            const floor = BALL_RADIUS * e.scale + .025;
+            const floor = BALL_RADIUS * e.scale + GROUND_CLEARANCE;
             e.airdrop = { elapsed: 0, duration: .55, startY: floor + 4.5, startX: point.x, startZ: point.z, x: point.x, z: point.z };
+            e.grounded = false;
+            e.body.setEnabledTranslations(true, true, true, true);
             e.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true);
             e.body.setTranslation({ x: point.x, y: e.airdrop.startY, z: point.z }, true);
             e.collider.setSensor(true);
@@ -540,7 +544,7 @@ export class GameSimulation {
     private advanceAirdrop(e: Entity, dt: number): void {
         const drop = e.airdrop!;
         drop.elapsed = Math.min(drop.duration, drop.elapsed + dt);
-        const progress = drop.elapsed / drop.duration, floor = BALL_RADIUS * e.scale + .025;
+        const progress = drop.elapsed / drop.duration, floor = BALL_RADIUS * e.scale + GROUND_CLEARANCE;
         const crowded = progress > .7 && this.aliveEntities().some(other => { if (other === e)
             return false; const p = other.airdrop || other.body.translation(); return Math.hypot(drop.x - p.x, drop.z - p.z) < BALL_RADIUS * (other.scale + e.scale) + .12; });
         if (crowded) {
@@ -605,14 +609,34 @@ export class GameSimulation {
         const scale = clamp(e.baseSize + e.sizeDelta, STAT_LIMITS.sizeMin, STAT_LIMITS.sizeMax);
         if (Math.abs(scale - e.scale) < .00001)
             return;
-        const oldRadius = BALL_RADIUS * e.scale, p = e.body.translation();
-        const grounded = !e.falling && p.y > oldRadius - .15 && this.stage.containsPoint(p.x, p.z);
+        const p = e.body.translation();
         e.scale = scale;
         e.collider.setRadius(BALL_RADIUS * scale);
         e.collider.setMass(5 * scale);
         e.body.recomputeMassPropertiesFromColliders();
-        if (grounded)
-            e.body.setTranslation({ x: p.x, y: Math.max(p.y + BALL_RADIUS * scale - oldRadius, BALL_RADIUS * scale + .01), z: p.z }, true);
+        if (e.grounded)
+            e.body.setTranslation({ x: p.x, y: BALL_RADIUS * scale + GROUND_CLEARANCE, z: p.z }, true);
+        this.syncGroundContact(e);
+    }
+    private syncGroundContact(e: Entity): void {
+        if (e.frozen)
+            return;
+        const p = e.body.translation(), floor = BALL_RADIUS * e.scale + GROUND_CLEARANCE;
+        const supported = e.alive && !e.falling && !e.airdrop &&
+            this.stage.containsPoint(p.x, p.z) && p.y >= floor - .15;
+        if (supported !== e.grounded) {
+            // On the flat arena Rapier must not push one ball up another ball's side.
+            // Release only the vertical axis once support is lost, so sea falls remain physical.
+            e.grounded = supported;
+            e.body.setEnabledTranslations(true, !supported, true, true);
+        }
+        if (supported) {
+            if (Math.abs(p.y - floor) > 1e-6)
+                e.body.setTranslation({ x: p.x, y: floor, z: p.z }, true);
+            const v = e.body.linvel();
+            if (v.y !== 0)
+                e.body.setLinvel({ x: v.x, y: 0, z: v.z }, true);
+        }
     }
     private speedFactor(e: Entity): number {
         return clamp(e.baseSpeed + e.speedDelta, STAT_LIMITS.speedMin, STAT_LIMITS.speedMax);
@@ -708,7 +732,11 @@ export class GameSimulation {
                 this.integrateMotion(e, dt);
             }
         }
+        for (const e of this.entities)
+            this.syncGroundContact(e);
         this.world.step();
+        for (const e of this.entities)
+            this.syncGroundContact(e);
         this.settleFallen();
         if (this.status !== 'playing')
             return;
@@ -805,7 +833,7 @@ export class GameSimulation {
         else
             e.knockback = nextKick;
         const horizontal = add(add(e.control, averageResponse), averageWind), vertical = e.body.linvel().y;
-        e.body.setLinvel({ x: horizontal.x, y: Math.min(vertical, 3.5), z: horizontal.z }, true);
+        e.body.setLinvel({ x: horizontal.x, y: e.grounded ? 0 : Math.min(vertical, 0), z: horizontal.z }, true);
         e.incoming = horizontal;
         e.sampledResponse = averageResponse;
         e.sampledWind = averageWind;

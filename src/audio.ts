@@ -156,7 +156,8 @@ export class GameAudio {
         if (this.ctx.currentTime - this.lastImpact < .055)
             return;
         this.lastImpact = this.ctx.currentTime;
-        this.shot(enhanced ? 'bumpPower' : speed > 6 ? 'bump2' : 'bump1', 'sfx', enhanced ? .95 : Math.min(.85, .3 + speed * .045), (enhanced ? .87 : .94) + Math.random() * .1);
+        // Keep the same crisp impact at every strength; convey force through volume.
+        this.shot('bump2', 'sfx', enhanced ? .95 : Math.min(.85, .3 + speed * .045), .94 + Math.random() * .1);
     }
     splash() { this.shot('splash', 'sfx', .8, .94 + Math.random() * .1); }
     win() { this.celebrationUntil = (this.ctx?.currentTime || 0) + (this.buffers.get('win')?.duration || 6); this.shot('win', 'sfx', .9); this.applyVolumes(); }

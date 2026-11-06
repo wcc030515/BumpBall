@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { assetUrl } from '../asset-url';
-import { IMPACT_SPARK_STYLES, type ImpactTier } from '../collision-feedback';
+import { IMPACT_SPARK_STYLES, impactSparkSize, type ImpactTier } from '../collision-feedback';
 type Burst = {
     root: THREE.Group;
     parts: THREE.Sprite[];
@@ -19,7 +19,7 @@ export class CollisionSparks {
         this.texture = new THREE.TextureLoader().load(assetUrl('effects/confusion-star.png'));
         this.texture.colorSpace = THREE.SRGBColorSpace;
     }
-    emit(contact: THREE.Vector3, radius: number, tier: ImpactTier, strongerId: string | null, eventKey: string) {
+    emit(contact: THREE.Vector3, impulse: number, tier: ImpactTier, strongerId: string | null, eventKey: string) {
         let burst = this.bursts.find(b => b.age < 0);
         if (!burst) {
             if (this.bursts.length < MAX_BURSTS) {
@@ -33,10 +33,10 @@ export class CollisionSparks {
         burst.age = 0;
         burst.life = style.duration;
         burst.flecks = style.flecks;
-        burst.strength = style.strength * THREE.MathUtils.clamp(Math.sqrt(Math.max(.1, radius) / .7), .7, 1.3);
+        burst.strength = impactSparkSize(impulse);
         burst.root.position.copy(contact);
         burst.root.visible = true;
-        burst.root.userData = { tier, strongerId, eventKey, contact: contact.toArray(), style: 'B-starflash' };
+        burst.root.userData = { tier, strongerId, eventKey, contact: contact.toArray(), style: 'B-starflash', impulse, size: burst.strength };
         burst.parts.forEach((part, i) => {
             part.visible = i <= style.flecks;
             part.material.color.set(tier === 0 ? '#f3f5f5' : i === 0 ? '#ffd24a' : i % 2 ? '#ffb400' : '#fff4d2');
