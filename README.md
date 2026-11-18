@@ -1,6 +1,6 @@
 # 海岛碰碰球 · BumpBall
 
-[公开试玩](https://wcc030515.github.io/BumpBall/?v=hud-20261118)
+[公开试玩](https://wcc030515.github.io/BumpBall/?v=resize-20261118)
 
 Q 版动物踩球竞技：将其他选手撞出小岛，最后留在岛上的选手获胜。八种动物支持主色自定义，单人模式包含不同属性的 NPC 和七种互动事件。
 

@@ -151,15 +151,18 @@ export class GameRenderer {
  private readonly canvas:HTMLCanvasElement;private readonly assets=new Map<string,GLTF>();private readonly paws=new Map<string,THREE.Texture>();private readonly masks=new Map<string,THREE.Texture>();private readonly views=new Map<string,AnimalView>();
  private readonly labels:HTMLDivElement;private ocean!:Ocean;private islandMixer?:THREE.AnimationMixer;private outline:number[][]=[];private previewScope:CameraScope|null=null;private previewYaw=0;
  private windLines:THREE.Line[]=[];private windDirection=new THREE.Vector3(1,0,0);private windTime=0;
- private lastPhase='';private width=1;private height=1;private time=0;private focusTime=0;private focusWinner:string|null=null;private focusStartPos=new THREE.Vector3();private focusStartQuat=new THREE.Quaternion();private focusStartFov=40;private lastScreen='';private lost=false;
+ private lastPhase='';private width=1;private height=1;private pixelRatio=0;private time=0;private focusTime=0;private focusWinner:string|null=null;private focusStartPos=new THREE.Vector3();private focusStartQuat=new THREE.Quaternion();private focusStartFov=40;private lastScreen='';private lost=false;
+ private readonly resizeObserver:ResizeObserver;
   private seenImpacts=new Set<string>();private impactClock=0;
  private readonly collisionSparks=new CollisionSparks(this.scene);
  private readonly warmColorMaterials:THREE.Material[]=[];
  private settings:Record<CameraScope,CameraSettings>={match:{height:15,distance:15,fov:40,yaw:-11.7},victory:{height:2,distance:4,fov:44.9,yaw:36}};
  private contextLost=(e:Event)=>{e.preventDefault();this.lost=true;window.dispatchEvent(new CustomEvent('ball-renderer-context',{detail:{lost:true}}))};
- private contextRestored=()=>{this.lost=false;this.renderer.resetState();this.resize();window.dispatchEvent(new CustomEvent('ball-renderer-context',{detail:{lost:false}}))};
+ private contextRestored=()=>{this.lost=false;this.renderer.resetState();this.resize(true);window.dispatchEvent(new CustomEvent('ball-renderer-context',{detail:{lost:false}}))};
  private constructor(canvas:HTMLCanvasElement){this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.05;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   this.labels=document.createElement('div');Object.assign(this.labels.style,{position:'absolute',inset:'0',overflow:'hidden',pointerEvents:'none',zIndex:'3'});canvas.parentElement!.append(this.labels);canvas.addEventListener('webglcontextlost',this.contextLost);canvas.addEventListener('webglcontextrestored',this.contextRestored);this.resize();
+  // Watch the canvas before loading assets, so a resize during loading is not lost.
+  this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);
  }
  static async create(canvas: HTMLCanvasElement, stageGeometry: Promise<StageGeometryData>) {
   const renderer = new GameRenderer(canvas);
@@ -207,6 +210,9 @@ export class GameRenderer {
  private updateWind(snapshot:Snapshot,dt:number){const wind=snapshot.wind;this.windTime+=dt;const active=!!wind?.active;if(active)this.windDirection.set(wind.direction.x,0,wind.direction.z).normalize();const d=this.windDirection,side=new THREE.Vector3(d.z,0,-d.x);for(let i=0;i<this.windLines.length;i++){const line=this.windLines[i];line.visible=active;if(!active)continue;const phase=(this.windTime*12+i*1.73)%32-16;const lateral=Math.sin(i*7.13)*13;const y=.4+(i%7)*.44;const center=d.clone().multiplyScalar(phase).addScaledVector(side,lateral);center.y=y;const array=line.geometry.getAttribute('position') as THREE.BufferAttribute;const length=.5+(i%4)*.24;array.setXYZ(0,center.x,center.y,center.z);array.setXYZ(1,center.x-d.x*length,center.y+.07*Math.sin(this.windTime*4+i),center.z-d.z*length);array.needsUpdate=true;(line.material as THREE.LineBasicMaterial).opacity=.19+Math.sin((phase+16)/32*Math.PI)*.31}}
  private setupLight(){this.scene.background=new THREE.Color('#b8dce6');this.scene.fog=new THREE.FogExp2('#bedee5',.0025);const sky=new Sky();sky.scale.setScalar(450);const sun=new THREE.Vector3(-.4,.82,.35).normalize();Object.assign(sky.material.uniforms.turbidity,{value:2.2});sky.material.uniforms.rayleigh.value=1.2;sky.material.uniforms.sunPosition.value.copy(sun);this.scene.add(sky);const env=new THREE.Scene();env.add(sky.clone());const pmrem=new THREE.PMREMGenerator(this.renderer);const target=pmrem.fromScene(env,.03);this.scene.environment=target.texture;this.scene.environmentIntensity=.30;pmrem.dispose();this.scene.add(new THREE.HemisphereLight('#d8f4ff','#697c4a',.85));const light=new THREE.DirectionalLight('#fff0d0',2.35);light.position.copy(sun).multiplyScalar(30);light.castShadow=true;light.shadow.mapSize.set(2048,2048);Object.assign(light.shadow.camera,{left:-15,right:15,top:15,bottom:-15,near:1,far:65});light.shadow.camera.updateProjectionMatrix();light.shadow.autoUpdate=true;light.shadow.needsUpdate=true;light.shadow.normalBias=.025;light.shadow.bias=-.00015;this.scene.add(light)}
  update(snapshot:Snapshot,localId:string,options:RenderOptions){
+  // CSS layout and DPR can change without a window resize, including while paused.
+  // Keep camera projection and DOM name positions in the same current pixel space.
+  this.resize();
   const dt=options.paused?0:Math.min(.06,Math.max(options.dt,0));this.time+=dt;this.islandMixer?.update(dt);this.updateWind(snapshot,dt);const phase=String(snapshot.status);const menu=options.screen==='menu';const snap=snapshot as unknown as {introRemaining?:number;introDuration?:number};
   if(menu||(phase==='intro'&&this.lastPhase!=='intro')||snapshot.elapsedSeconds<this.impactClock-1e-6){this.seenImpacts.clear();this.collisionSparks.clear();for(const v of this.views.values())v.effects.clear()}this.impactClock=snapshot.elapsedSeconds;
   if(phase==='intro'&&this.lastPhase!=='intro'){for(const v of this.views.values())v.dispose();this.views.clear()}this.lastPhase=phase;
@@ -256,7 +262,14 @@ export class GameRenderer {
  rotatePreview(deltaRadians:number){this.previewYaw+=deltaRadians}
  isFocusDone(){return this.focusWinner!==null&&this.focusTime>=2}
  inputToWorld(x:number,y:number,at:{x:number;y?:number;z:number}={x:0,y:.7,z:0}){if(Math.hypot(x,y)<.0001)return{x:0,z:0};const strength=Math.min(1,Math.hypot(x,y)),a=new THREE.Vector3(at.x,at.y??.7,at.z),projected=a.clone().project(this.camera);const ndc=new THREE.Vector2(projected.x+x/Math.hypot(x,y)*48/this.width,projected.y-y/Math.hypot(x,y)*48/this.height);const ray=new THREE.Raycaster();ray.setFromCamera(ndc,this.camera);const hit=new THREE.Vector3();if(ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-a.y),hit)){hit.sub(a);hit.y=0;hit.normalize().multiplyScalar(strength);return{x:hit.x,z:hit.z}}return{x:0,z:0}}
- resize(){this.width=Math.max(1,this.canvas.clientWidth||innerWidth);this.height=Math.max(1,this.canvas.clientHeight||innerHeight);const dpr=Math.min(devicePixelRatio||1,Math.sqrt(1920*1080/(this.width*this.height)),2);this.renderer.setPixelRatio(Math.max(.1,dpr));this.renderer.setSize(this.width,this.height,false);this.camera.aspect=this.width/this.height;this.camera.updateProjectionMatrix()}
+ resize(force=false){
+  const width=Math.max(1,this.canvas.clientWidth||innerWidth),height=Math.max(1,this.canvas.clientHeight||innerHeight);
+  const dpr=Math.max(.1,Math.min(devicePixelRatio||1,Math.sqrt(1920*1080/(width*height)),2));
+  if(!force&&width===this.width&&height===this.height&&dpr===this.pixelRatio)return;
+  this.width=width;this.height=height;this.pixelRatio=dpr;
+  this.renderer.setDrawingBufferSize(width,height,dpr);
+  this.camera.aspect=width/height;this.camera.updateProjectionMatrix();
+ }
  render(){if(!this.lost)this.renderer.render(this.scene,this.camera)}
- dispose(){for(const view of this.views.values())view.dispose();this.views.clear();this.warmColorMaterials.forEach(m=>m.dispose());this.labels.remove();this.canvas.removeEventListener('webglcontextlost',this.contextLost);this.canvas.removeEventListener('webglcontextrestored',this.contextRestored);this.ocean.dispose();this.collisionSparks.dispose();this.renderer.dispose()}
+ dispose(){this.resizeObserver.disconnect();for(const view of this.views.values())view.dispose();this.views.clear();this.warmColorMaterials.forEach(m=>m.dispose());this.labels.remove();this.canvas.removeEventListener('webglcontextlost',this.contextLost);this.canvas.removeEventListener('webglcontextrestored',this.contextRestored);this.ocean.dispose();this.collisionSparks.dispose();this.renderer.dispose()}
 }
