@@ -142,3 +142,5 @@ defeat-sax.mp3
   License: CC0-1.0
   Processing: Exact approved audition C, full original phrase, unchanged pitch and tempo
 
+
+Colyseus JavaScript SDK 0.18.9 and its browser runtime dependencies are used for multiplayer networking. Full license texts are in licenses/colyseus-sdk-and-dependencies.txt. Node server production dependencies retain their licenses in the packages installed from the locked server/package-lock.json.

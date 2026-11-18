@@ -1,41 +1,43 @@
 import * as THREE from 'three';
+
 // One spectrum is shared by the GPU surface and swimmer buoyancy. Coordinates
 // are in metres and radians; CPU sampling inverts the horizontal displacement.
 const WAVE_SPECTRUM = [
-    [.94, .34, .22, 12.0, 1.40],
-    [-.72, .68, .13, 7.3, 1.80],
-    [.28, .96, .080, 4.2, 2.35],
-    [.85, -.52, .045, 2.6, 2.80],
-    [-.91, -.41, .025, 1.6, 3.60],
+  [.94, .34, .22, 12.0, 1.40],
+  [-.72, .68, .13, 7.3, 1.80],
+  [.28, .96, .080, 4.2, 2.35],
+  [.85, -.52, .045, 2.6, 2.80],
+  [-.91, -.41, .025, 1.6, 3.60],
 ] as const;
 const STEEPNESS = .62;
 const glslFloat = (value: number) => Number.isInteger(value) ? `${value}.0` : String(value);
-const waveCalls = WAVE_SPECTRUM.map(([x, z, a, l, v]) => `wave(p, tangent, binormal, normalize(vec2(${glslFloat(x)}, ${glslFloat(z)})), ${glslFloat(a)}, ${glslFloat(l)}, ${glslFloat(v)}, base);`).join('\n  ');
+const waveCalls = WAVE_SPECTRUM.map(([x,z,a,l,v]) => `wave(p, tangent, binormal, normalize(vec2(${glslFloat(x)}, ${glslFloat(z)})), ${glslFloat(a)}, ${glslFloat(l)}, ${glslFloat(v)}, base);`).join('\n  ');
 export function sampleOceanHeight(worldX: number, worldZ: number, time: number, waterY = -1.7): number {
-    let baseX = worldX, baseZ = worldZ;
-    for (let iteration = 0; iteration < 3; iteration++) {
-        let displacementX = 0, displacementZ = 0;
-        for (const [dx, dz, amplitude, wavelength, speed] of WAVE_SPECTRUM) {
-            const length = Math.hypot(dx, dz), x = dx / length, z = dz / length;
-            const phase = Math.PI * 2 / wavelength * (x * baseX + z * baseZ) - time * speed;
-            const distance = amplitude * STEEPNESS * Math.cos(phase);
-            displacementX += x * distance;
-            displacementZ += z * distance;
-        }
-        baseX = worldX - displacementX;
-        baseZ = worldZ - displacementZ;
+  let baseX = worldX, baseZ = worldZ;
+  for (let iteration = 0; iteration < 3; iteration++) {
+    let displacementX = 0, displacementZ = 0;
+    for (const [dx,dz,amplitude,wavelength,speed] of WAVE_SPECTRUM) {
+      const length = Math.hypot(dx,dz), x = dx / length, z = dz / length;
+      const phase = Math.PI * 2 / wavelength * (x * baseX + z * baseZ) - time * speed;
+      const distance = amplitude * STEEPNESS * Math.cos(phase);
+      displacementX += x * distance;
+      displacementZ += z * distance;
     }
-    let height = waterY;
-    for (const [dx, dz, amplitude, wavelength, speed] of WAVE_SPECTRUM) {
-        const length = Math.hypot(dx, dz);
-        const phase = Math.PI * 2 / wavelength * (dx / length * baseX + dz / length * baseZ) - time * speed;
-        height += amplitude * Math.sin(phase);
-    }
-    return height;
+    baseX = worldX - displacementX;
+    baseZ = worldZ - displacementZ;
+  }
+  let height = waterY;
+  for (const [dx,dz,amplitude,wavelength,speed] of WAVE_SPECTRUM) {
+    const length = Math.hypot(dx,dz);
+    const phase = Math.PI * 2 / wavelength * (dx / length * baseX + dz / length * baseZ) - time * speed;
+    height += amplitude * Math.sin(phase);
+  }
+  return height;
 }
+
 // Multi-directional Gerstner geometry provides real silhouettes; a second,
 // shorter wave spectrum supplies surface normals without a large normal map.
-const vertexShader = /* glsl */ `
+const vertexShader = /* glsl */`
 uniform float uTime;
 uniform mat4 uTextureMatrix;
 varying vec3 vWorld;
@@ -67,7 +69,8 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * world;
 }
 `;
-const fragmentShader = /* glsl */ `
+
+const fragmentShader = /* glsl */`
 uniform float uTime;
 uniform float uWaterY;
 uniform float uIslandRadius;
@@ -179,136 +182,130 @@ void main() {
   #include <colorspace_fragment>
 }
 `;
+
 export class Ocean {
-    mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-    private readonly scene: THREE.Scene;
-    private readonly renderer: THREE.WebGLRenderer;
-    private readonly reflectionCamera = new THREE.PerspectiveCamera();
-    private readonly reflectionTarget = new THREE.WebGLRenderTarget(768, 512, { type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: false });
-    private readonly textureMatrix = new THREE.Matrix4();
-    private readonly rotationMatrix = new THREE.Matrix4();
-    private readonly reflectorPlane = new THREE.Plane();
-    private readonly planeNormal = new THREE.Vector3(0, 1, 0);
-    private readonly mirrorPosition = new THREE.Vector3();
-    private readonly viewPosition = new THREE.Vector3();
-    private readonly view = new THREE.Vector3();
-    private readonly look = new THREE.Vector3();
-    private readonly target = new THREE.Vector3();
-    private readonly clip = new THREE.Vector4();
-    private readonly q = new THREE.Vector4();
-    private readonly savedViewport = new THREE.Vector4();
-    private readonly savedScissor = new THREE.Vector4();
-    private lastReflectionTime = -Infinity;
-    private waterY: number;
-    private disposed = false;
-    constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer, opts: {
-        radius?: number;
-        waterY?: number;
-    } = {}) {
-        this.scene = scene;
-        this.renderer = renderer;
-        this.waterY = opts.waterY ?? -1.7;
-        this.reflectionTarget.texture.name = 'Ocean planar reflection';
-        const geometry = new THREE.PlaneGeometry(280, 280, 280, 280);
-        geometry.rotateX(-Math.PI / 2);
-        const shader = new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 }, uWaterY: { value: this.waterY },
-                uIslandRadius: { value: opts.radius ?? 9.0 },
-                uReflection: { value: this.reflectionTarget.texture },
-                uReflectionReady: { value: 0 }, uShoreProfile: { value: null }, uHasShoreProfile: { value: 0 }, uTextureMatrix: { value: this.textureMatrix },
-                uSunDirection: { value: new THREE.Vector3(-0.4, 0.8, 0.2).normalize() },
-                uDeepColor: { value: new THREE.Color('#07577b') },
-                uShallowColor: { value: new THREE.Color('#3fc3b0') },
-            },
-            vertexShader, fragmentShader, side: THREE.FrontSide, transparent: true, depthWrite: false,
-        });
-        this.mesh = new THREE.Mesh(geometry, shader);
-        this.mesh.name = 'Ocean · moving swells and shoreline surf';
-        this.mesh.position.y = this.waterY;
-        this.mesh.frustumCulled = false;
-        this.mesh.renderOrder = -1;
-        scene.add(this.mesh);
-    }
-    sampleHeight(x: number, z: number, time: number): number { return sampleOceanHeight(x, z, time, this.waterY); }
-    setShoreline(radii: number[]) { if (radii.length !== 512)
-        return; const data = new Float32Array(radii); const texture = new THREE.DataTexture(data, 512, 1, THREE.RedFormat, THREE.FloatType); texture.wrapS = THREE.RepeatWrapping; texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter; texture.needsUpdate = true; this.mesh.material.uniforms.uShoreProfile.value = texture; this.mesh.material.uniforms.uHasShoreProfile.value = 1; }
-    update(time: number, camera: THREE.PerspectiveCamera) {
-        if (this.disposed)
-            return;
-        this.mesh.material.uniforms.uTime.value = time;
-        // Reflection at ~12 fps; water itself stays at the full rendering rate.
-        if ((time >= this.lastReflectionTime && time - this.lastReflectionTime < 0.08) || camera.position.y < this.waterY + 0.15)
-            return;
-        this.lastReflectionTime = time;
-        const renderer = this.renderer;
-        const mirrorCamera = this.reflectionCamera;
-        camera.updateMatrixWorld();
-        this.mirrorPosition.set(0, this.waterY, 0);
-        this.viewPosition.setFromMatrixPosition(camera.matrixWorld);
-        this.view.subVectors(this.mirrorPosition, this.viewPosition);
-        this.view.reflect(this.planeNormal).negate().add(this.mirrorPosition);
-        this.rotationMatrix.extractRotation(camera.matrixWorld);
-        this.look.set(0, 0, -1).applyMatrix4(this.rotationMatrix).add(this.viewPosition);
-        this.target.subVectors(this.mirrorPosition, this.look).reflect(this.planeNormal).negate().add(this.mirrorPosition);
-        mirrorCamera.position.copy(this.view);
-        mirrorCamera.up.set(0, 1, 0).applyMatrix4(this.rotationMatrix).reflect(this.planeNormal);
-        mirrorCamera.lookAt(this.target);
-        mirrorCamera.near = camera.near;
-        mirrorCamera.far = camera.far;
-        mirrorCamera.projectionMatrix.copy(camera.projectionMatrix);
-        mirrorCamera.updateMatrixWorld();
-        mirrorCamera.matrixWorldInverse.copy(mirrorCamera.matrixWorld).invert();
-        this.textureMatrix.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
-        this.textureMatrix.multiply(mirrorCamera.projectionMatrix).multiply(mirrorCamera.matrixWorldInverse);
-        // Lengyel oblique near-plane clipping: reflection must exclude everything
-        // below the surface, particularly the undersea skirt of the island.
-        this.reflectorPlane.setFromNormalAndCoplanarPoint(this.planeNormal, this.mirrorPosition);
-        this.reflectorPlane.applyMatrix4(mirrorCamera.matrixWorldInverse);
-        this.clip.set(this.reflectorPlane.normal.x, this.reflectorPlane.normal.y, this.reflectorPlane.normal.z, this.reflectorPlane.constant);
-        const projection = mirrorCamera.projectionMatrix.elements;
-        this.q.set((Math.sign(this.clip.x) + projection[8]) / projection[0], (Math.sign(this.clip.y) + projection[9]) / projection[5], -1, (1 + projection[10]) / projection[14]);
-        this.clip.multiplyScalar(2 / this.clip.dot(this.q));
-        projection[2] = this.clip.x;
-        projection[6] = this.clip.y;
-        projection[10] = this.clip.z + 1 - 0.003;
-        projection[14] = this.clip.w;
-        mirrorCamera.projectionMatrixInverse.copy(mirrorCamera.projectionMatrix).invert();
-        const width = 768;
-        const height = Math.max(256, Math.min(768, Math.round(width / camera.aspect)));
-        if (this.reflectionTarget.height !== height)
-            this.reflectionTarget.setSize(width, height);
-        const previousTarget = renderer.getRenderTarget();
-        const previousXr = renderer.xr.enabled;
-        const previousShadow = renderer.shadowMap.autoUpdate;
-        const previousScissorTest = renderer.getScissorTest();
-        renderer.getViewport(this.savedViewport);
-        renderer.getScissor(this.savedScissor);
-        this.mesh.visible = false;
-        renderer.xr.enabled = false;
-        renderer.shadowMap.autoUpdate = false;
-        renderer.setRenderTarget(this.reflectionTarget);
-        renderer.setViewport(0, 0, width, height);
-        renderer.setScissorTest(false);
-        renderer.clear();
-        renderer.render(this.scene, mirrorCamera);
-        renderer.setRenderTarget(previousTarget);
-        renderer.setViewport(this.savedViewport);
-        renderer.setScissor(this.savedScissor);
-        renderer.setScissorTest(previousScissorTest);
-        renderer.xr.enabled = previousXr;
-        renderer.shadowMap.autoUpdate = previousShadow;
-        this.mesh.visible = true;
-        this.mesh.material.uniforms.uReflectionReady.value = 1;
-    }
-    dispose() {
-        if (this.disposed)
-            return;
-        this.disposed = true;
-        this.scene.remove(this.mesh);
-        this.mesh.geometry.dispose();
-        this.mesh.material.uniforms.uShoreProfile.value?.dispose();
-        this.mesh.material.dispose();
-        this.reflectionTarget.dispose();
-    }
+  mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly scene: THREE.Scene;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly reflectionCamera = new THREE.PerspectiveCamera();
+  private readonly reflectionTarget = new THREE.WebGLRenderTarget(768, 512, { type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: false });
+  private readonly textureMatrix = new THREE.Matrix4();
+  private readonly rotationMatrix = new THREE.Matrix4();
+  private readonly reflectorPlane = new THREE.Plane();
+  private readonly planeNormal = new THREE.Vector3(0, 1, 0);
+  private readonly mirrorPosition = new THREE.Vector3();
+  private readonly viewPosition = new THREE.Vector3();
+  private readonly view = new THREE.Vector3();
+  private readonly look = new THREE.Vector3();
+  private readonly target = new THREE.Vector3();
+  private readonly clip = new THREE.Vector4();
+  private readonly q = new THREE.Vector4();
+  private readonly savedViewport = new THREE.Vector4();
+  private readonly savedScissor = new THREE.Vector4();
+  private lastReflectionTime = -Infinity;
+  private waterY: number;
+  private disposed = false;
+
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer, opts: { radius?: number; waterY?: number } = {}) {
+    this.scene = scene; this.renderer = renderer;
+    this.waterY = opts.waterY ?? -1.7;
+    this.reflectionTarget.texture.name = 'Ocean planar reflection';
+    const geometry = new THREE.PlaneGeometry(280, 280, 280, 280);
+    geometry.rotateX(-Math.PI / 2);
+    const shader = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 }, uWaterY: { value: this.waterY },
+        uIslandRadius: { value: opts.radius ?? 9.0 },
+        uReflection: { value: this.reflectionTarget.texture },
+        uReflectionReady: { value: 0 }, uShoreProfile:{value:null},uHasShoreProfile:{value:0}, uTextureMatrix: { value: this.textureMatrix },
+        uSunDirection: { value: new THREE.Vector3(-0.4, 0.8, 0.2).normalize() },
+        uDeepColor: { value: new THREE.Color('#07577b') },
+        uShallowColor: { value: new THREE.Color('#3fc3b0') },
+      },
+      vertexShader, fragmentShader, side: THREE.FrontSide, transparent: true, depthWrite: false,
+    });
+    this.mesh = new THREE.Mesh(geometry, shader);
+    this.mesh.name = 'Ocean · moving swells and shoreline surf';
+    this.mesh.position.y = this.waterY;
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = -1;
+    scene.add(this.mesh);
+  }
+
+  sampleHeight(x:number,z:number,time:number):number {return sampleOceanHeight(x,z,time,this.waterY);}
+
+  setShoreline(radii:number[]){if(radii.length!==512)return;const data=new Float32Array(radii);const texture=new THREE.DataTexture(data,512,1,THREE.RedFormat,THREE.FloatType);texture.wrapS=THREE.RepeatWrapping;texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;texture.needsUpdate=true;this.mesh.material.uniforms.uShoreProfile.value=texture;this.mesh.material.uniforms.uHasShoreProfile.value=1;}
+
+  update(time: number, camera: THREE.PerspectiveCamera) {
+    if (this.disposed) return;
+    this.mesh.material.uniforms.uTime.value = time;
+    // Reflection at ~12 fps; water itself stays at the full rendering rate.
+    if ((time >= this.lastReflectionTime && time - this.lastReflectionTime < 0.08) || camera.position.y < this.waterY + 0.15) return;
+    this.lastReflectionTime = time;
+    const renderer = this.renderer;
+    const mirrorCamera = this.reflectionCamera;
+    camera.updateMatrixWorld();
+    this.mirrorPosition.set(0, this.waterY, 0);
+    this.viewPosition.setFromMatrixPosition(camera.matrixWorld);
+    this.view.subVectors(this.mirrorPosition, this.viewPosition);
+    this.view.reflect(this.planeNormal).negate().add(this.mirrorPosition);
+    this.rotationMatrix.extractRotation(camera.matrixWorld);
+    this.look.set(0, 0, -1).applyMatrix4(this.rotationMatrix).add(this.viewPosition);
+    this.target.subVectors(this.mirrorPosition, this.look).reflect(this.planeNormal).negate().add(this.mirrorPosition);
+    mirrorCamera.position.copy(this.view);
+    mirrorCamera.up.set(0, 1, 0).applyMatrix4(this.rotationMatrix).reflect(this.planeNormal);
+    mirrorCamera.lookAt(this.target);
+    mirrorCamera.near = camera.near; mirrorCamera.far = camera.far;
+    mirrorCamera.projectionMatrix.copy(camera.projectionMatrix);
+    mirrorCamera.updateMatrixWorld();
+    mirrorCamera.matrixWorldInverse.copy(mirrorCamera.matrixWorld).invert();
+
+    this.textureMatrix.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+    this.textureMatrix.multiply(mirrorCamera.projectionMatrix).multiply(mirrorCamera.matrixWorldInverse);
+    // Lengyel oblique near-plane clipping: reflection must exclude everything
+    // below the surface, particularly the undersea skirt of the island.
+    this.reflectorPlane.setFromNormalAndCoplanarPoint(this.planeNormal, this.mirrorPosition);
+    this.reflectorPlane.applyMatrix4(mirrorCamera.matrixWorldInverse);
+    this.clip.set(this.reflectorPlane.normal.x, this.reflectorPlane.normal.y, this.reflectorPlane.normal.z, this.reflectorPlane.constant);
+    const projection = mirrorCamera.projectionMatrix.elements;
+    this.q.set((Math.sign(this.clip.x) + projection[8]) / projection[0], (Math.sign(this.clip.y) + projection[9]) / projection[5], -1, (1 + projection[10]) / projection[14]);
+    this.clip.multiplyScalar(2 / this.clip.dot(this.q));
+    projection[2] = this.clip.x;
+    projection[6] = this.clip.y;
+    projection[10] = this.clip.z + 1 - 0.003;
+    projection[14] = this.clip.w;
+    mirrorCamera.projectionMatrixInverse.copy(mirrorCamera.projectionMatrix).invert();
+
+    const width = 768;
+    const height = Math.max(256, Math.min(768, Math.round(width / camera.aspect)));
+    if (this.reflectionTarget.height !== height) this.reflectionTarget.setSize(width, height);
+    const previousTarget = renderer.getRenderTarget();
+    const previousXr = renderer.xr.enabled;
+    const previousShadow = renderer.shadowMap.autoUpdate;
+    const previousScissorTest = renderer.getScissorTest();
+    renderer.getViewport(this.savedViewport); renderer.getScissor(this.savedScissor);
+    this.mesh.visible = false;
+    renderer.xr.enabled = false;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(this.reflectionTarget);
+    renderer.setViewport(0, 0, width, height);
+    renderer.setScissorTest(false);
+    renderer.clear();
+    renderer.render(this.scene, mirrorCamera);
+    renderer.setRenderTarget(previousTarget);
+    renderer.setViewport(this.savedViewport);
+    renderer.setScissor(this.savedScissor);
+    renderer.setScissorTest(previousScissorTest);
+    renderer.xr.enabled = previousXr;
+    renderer.shadowMap.autoUpdate = previousShadow;
+    this.mesh.visible = true;
+    this.mesh.material.uniforms.uReflectionReady.value = 1;
+  }
+
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.scene.remove(this.mesh);
+    this.mesh.geometry.dispose(); this.mesh.material.uniforms.uShoreProfile.value?.dispose();this.mesh.material.dispose(); this.reflectionTarget.dispose();
+  }
 }

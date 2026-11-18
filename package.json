@@ -1,26 +1,38 @@
 {
-  "name": "bumpball",
+  "name": "ball-island-survival",
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=22.12.0"
-  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "check": "tsc --noEmit",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "start": "node server.mjs"
+    "build:server": "node server/build.mjs",
+    "build:all": "npm run build && npm run build:server",
+    "start": "node server.mjs",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "0.19.3",
-    "three": "0.180.0",
-    "ws": "8.22.0"
+    "@colyseus/sdk": "0.18.9",
+    "@dimforge/rapier3d-compat": "^0.19.0",
+    "three": "^0.180.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
-    "@types/three": "0.180.0",
-    "typescript": "5.9.3",
-    "vite": "7.3.7"
+    "esbuild": "0.28.2",
+    "@gltf-transform/core": "4.2.1",
+    "@gltf-transform/extensions": "4.2.1",
+    "@gltf-transform/functions": "4.2.1",
+    "@types/three": "^0.180.0",
+    "meshoptimizer": "0.22.0",
+    "playwright": "^1.64.0",
+    "sharp": "0.35.5",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
+  },
+  "overrides": {
+    "@colyseus/schema": "5.0.42"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

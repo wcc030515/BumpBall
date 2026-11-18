@@ -1,13 +1,7 @@
-const ROOT = ((import.meta as unknown as {
-    env: {
-        BASE_URL: string;
-    };
-}).env.BASE_URL).replace(/\/$/, '');
+const ROOT = ((import.meta as unknown as {env:{BASE_URL:string}}).env.BASE_URL).replace(/\/$/, '');
 export function assetUrl(path: string): string {
-    const full = `${ROOT}/assets/native/${path}`;
-    const embedded = (window as unknown as {
-        __BALL_ASSETS__?: Record<string, string>;
-    }).__BALL_ASSETS__;
-    const unversioned = full.split('?')[0];
-    return embedded?.[unversioned] || embedded?.[unversioned.replace(/^.*?\/assets\//, 'assets/')] || embedded?.[`/assets/native/${path.split('?')[0]}`] || full;
+  const full = `${ROOT}/assets/native/${path}`;
+  const embedded = (window as unknown as { __BALL_ASSETS__?: Record<string, string> }).__BALL_ASSETS__;
+  const unversioned=full.split('?')[0];
+  return embedded?.[unversioned] || embedded?.[unversioned.replace(/^.*?\/assets\//, 'assets/')] || embedded?.[`/assets/native/${path.split('?')[0]}`] || full;
 }
