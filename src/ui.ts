@@ -37,7 +37,7 @@ export class UI {
   private roomOpen=false; private soundOpen=false; private room:RoomState|null=null; private mode:'solo'|'pk'='solo';
   private roomRenderKey='';private roomName='';private connectionStatus:'connecting'|'connected'|'reconnecting'|'idle'='idle';
   private screen:'menu'|'playing'|'finished'='menu'; private snapshot:Snapshot|null=null;private localId='player';
-  private paused=false;private winnerVisible=false;private spectator=false;
+  private effectsOpen=false;private paused=false;private winnerVisible=false;private spectator=false;
   constructor(callbacks:UICallbacks){
     this.callbacks=callbacks;this.restore();try{this.roomName=localStorage.getItem('ball-island-room-name-v1')||''}catch{}this.root=document.createElement('div');this.root.id='game-ui';
     this.root.innerHTML=`
@@ -50,7 +50,7 @@ export class UI {
       <section class="menu-panel" aria-label="游戏开始菜单"><div class="mode-actions"><button type="button" class="primary mode-button" data-action="start">${soloIcon}<span>单人游戏</span><span class="mode-chevron" aria-hidden="true">›</span></button><button type="button" class="mode-button" data-action="room">${onlineIcon}<span>联机游玩</span><span class="mode-chevron" aria-hidden="true">›</span></button></div></section>
       <nav class="bottom-controls" aria-label="游戏控制"><button type="button" class="sound-toggle" data-action="sound" aria-label="声音设置" aria-expanded="false" aria-controls="sound-panel" title="声音设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg></button><button type="button" data-action="pause">暂停</button></nav>
       <section id="sound-panel" class="sound-panel" hidden aria-label="声音设置"><div class="panel-heading"><h2>声音设置</h2><button type="button" class="close-button" data-action="closeSound" aria-label="关闭声音设置">×</button></div>${volumeRow('sfx','游戏音效')}${volumeRow('music','背景音乐')}</section>
-      <section class="effect-controls" aria-label="互动模拟">${EFFECTS.map(effect=>`<button type="button" class="effect-button" data-effect="${effect.kind}" aria-label="${effect.label}">${INTERACTION_ICONS[effect.kind]}<span class="effect-label">${effect.label}</span><small hidden></small></button>`).join('')}</section>
+      <section class="effect-controls is-collapsed" aria-label="互动模拟"><button type="button" class="effect-toggle" data-action="toggleEffects" aria-expanded="false" aria-controls="effect-list" aria-label="展开互动">互动 <span aria-hidden="true">⌄</span></button><div id="effect-list" class="effect-list" hidden>${EFFECTS.map(effect=>`<button type="button" class="effect-button" data-effect="${effect.kind}" aria-label="${effect.label}">${INTERACTION_ICONS[effect.kind]}<span class="effect-label">${effect.label}</span><small hidden></small></button>`).join('')}</div></section>
       <div class="countdown" hidden aria-live="assertive"><span id="countdown-number">3</span></div>
       <section class="pause-overlay" hidden aria-label="游戏暂停"><div class="bottom-actions pause-actions"><button type="button" class="mint" data-action="resume">继续游戏</button><button type="button" data-action="restart">重新开始</button><button type="button" data-action="menu">返回开始界面</button></div></section>
       <section class="result-overlay" hidden aria-label="比赛结果"><div class="bottom-actions result-actions"><button type="button" class="primary" data-action="restart">再来一局</button><button type="button" data-action="menu">返回开始界面</button></div></section>
@@ -68,6 +68,7 @@ export class UI {
   closeSound():boolean{if(!this.soundOpen)return false;this.soundOpen=false;this.refresh();this.query<HTMLButtonElement>('[data-action="sound"]').focus();return true}
   setMode(mode:'solo'|'pk'){this.mode=mode;this.refresh()}
   setScreen(screen:'menu'|'playing'|'finished'){
+    this.effectsOpen=false;
     if(screen!==this.screen){this.winnerVisible=false;this.soundOpen=false}this.screen=screen;
     if(screen!=='menu')this.roomOpen=false;if(screen==='menu'){this.paused=false;this.spectator=false}this.refresh();
   }
@@ -102,6 +103,7 @@ export class UI {
     const menu=this.screen==='menu',result=this.screen==='finished'&&this.winnerVisible,pk=this.mode==='pk',guest=pk&&this.room?.role==='guest';
     this.root.dataset.screen=this.screen;this.root.dataset.paused=String(this.paused);this.root.dataset.spectator=String(this.spectator);
     this.query('.menu-title').hidden=!menu;this.query('.menu-panel').hidden=!menu;this.query('.character-panel').hidden=!menu||this.roomOpen;if(menu)this.query('.countdown').hidden=true;
+    this.query('#effect-list').hidden=!this.effectsOpen;this.query('.effect-controls').classList.toggle('is-collapsed',!this.effectsOpen);const toggle=this.query('[data-action="toggleEffects"]');toggle.setAttribute('aria-expanded',String(this.effectsOpen));toggle.setAttribute('aria-label',this.effectsOpen?'收起互动':'展开互动');
     this.query('.effect-controls').hidden=menu||this.screen==='finished'||this.paused||this.spectator;
     this.query('.pause-overlay').hidden=!this.paused||menu||this.spectator||this.screen==='finished';this.query('.spectator-panel').hidden=!this.spectator||this.paused;
     this.query('.result-overlay').hidden=!result;this.query('.room-backdrop').hidden=!this.roomOpen;
@@ -125,6 +127,7 @@ export class UI {
       const effect=button.dataset.effect as EffectKind|undefined;if(effect){this.callbacks.onAction('effect',{kind:effect,targetId:this.localId});button.classList.remove('triggered');void button.offsetWidth;button.classList.add('triggered');return}
       const action=button.dataset.action;if(!action)return;
       switch(action){
+        case 'toggleEffects':this.effectsOpen=!this.effectsOpen;this.refresh();return;
         case 'mute':this.callbacks.onAction('mute',{bus:button.dataset.bus});return;
         case 'sound':this.soundOpen=!this.soundOpen;this.refresh();this.callbacks.onAction('modal');return;
         case 'closeSound':this.closeSound();return;
